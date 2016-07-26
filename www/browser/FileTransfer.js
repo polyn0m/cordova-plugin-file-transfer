@@ -315,7 +315,7 @@ FileTransfer.prototype.download = function(source, target, successCallback, erro
         fail(FileTransferError.ABORT_ERR, this.status, this.response);
     };
 
-    xhr.open("GET", source, true);
+    xhr.open("POST", source, true);
 
     for (var header in headers) {
         if (headers.hasOwnProperty(header)) {
