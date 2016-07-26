@@ -235,6 +235,8 @@ FileTransfer.prototype.download = function(source, target, successCallback, erro
     
     var headers = options.headers || {};
     var withCredentials = options.withCredentials || false;
+    var params = options.params || {};
+    var httpMethod = options.httpMethod && options.httpMethod.toUpperCase() === "POST" ? "POST" : "GET";
 
     var basicAuthHeader = getBasicAuthHeader(source);
     if (basicAuthHeader) {
@@ -245,6 +247,15 @@ FileTransfer.prototype.download = function(source, target, successCallback, erro
     var that = this;
     var xhr = transfers[this._id] = new XMLHttpRequest();
     xhr.withCredentials = withCredentials;
+
+    // Prepare form data to send to server
+    var fd = new FormData();
+    for (var prop in params) {
+        if (params.hasOwnProperty(prop)) {
+            fd.append(prop, params[prop]);
+        }
+    }
+
     var fail = errorCallback && function(code, status, response) {
         if (transfers[that._id]) {
             delete transfers[that._id];
@@ -315,7 +326,7 @@ FileTransfer.prototype.download = function(source, target, successCallback, erro
         fail(FileTransferError.ABORT_ERR, this.status, this.response);
     };
 
-    xhr.open("POST", source, true);
+    xhr.open(httpMethod, source, true);
 
     for (var header in headers) {
         if (headers.hasOwnProperty(header)) {
@@ -325,7 +336,7 @@ FileTransfer.prototype.download = function(source, target, successCallback, erro
 
     xhr.responseType = "blob";
 
-    xhr.send();
+    xhr.send(fd);
 };
 
 /**
