@@ -736,6 +736,9 @@ public class FileTransfer extends CordovaPlugin {
         final String objectId = args.getString(3);
         final JSONObject headers = args.optJSONObject(4);
 
+        final JSONObject params = args.optJSONObject(5) == null ? new JSONObject() : args.optJSONObject(5);
+        final String httpMethod = getArgument(args, 6, "GET");
+
         final Uri sourceUri = resourceApi.remapUri(Uri.parse(source));
         // Accept a path or a URI for the source.
         Uri tmpTarget = Uri.parse(target);
@@ -841,7 +844,13 @@ public class FileTransfer extends CordovaPlugin {
                             https.setHostnameVerifier(DO_NOT_VERIFY);
                         }
 
-                        connection.setRequestMethod("GET");
+                        connection.setRequestMethod(httpMethod);
+
+                        // if we specified a Content-Type header, don't do multipart form upload
+                        boolean multipartFormUpload = (headers == null) || !headers.has("Content-Type");
+                        if (multipartFormUpload) {
+                          connection.setRequestProperty("Content-Type", "multipart/form-data; boundary=" + BOUNDARY);
+                        }
 
                         // TODO: Make OkHttp use this CookieManager by default.
                         String cookie = getCookies(sourceUri.toString());
@@ -857,6 +866,27 @@ public class FileTransfer extends CordovaPlugin {
                         // Handle the other headers
                         if (headers != null) {
                             addHeadersToRequest(connection, headers);
+                        }
+
+                            /*
+                            * Store the non-file portions of the multipart data as a string, so that we can add it
+                            * to the contentSize, since it is part of the body of the HTTP request.
+                            */
+                        StringBuilder beforeData = new StringBuilder();
+                        try {
+                            for (Iterator<?> iter = params.keys(); iter.hasNext();) {
+                                Object key = iter.next();
+                                if(!String.valueOf(key).equals("headers"))
+                                {
+                                  beforeData.append(LINE_START).append(BOUNDARY).append(LINE_END);
+                                  beforeData.append("Content-Disposition: form-data; name=\"").append(key.toString()).append('"');
+                                  beforeData.append(LINE_END).append(LINE_END);
+                                  beforeData.append(params.getString(key.toString()));
+                                  beforeData.append(LINE_END);
+                                }
+                            }
+                        } catch (JSONException e) {
+                            Log.e(LOG_TAG, e.getMessage(), e);
                         }
 
                         connection.connect();
