@@ -189,6 +189,7 @@ FileTransfer.prototype.download = function(source, target, successCallback, erro
     }
 
     var httpMethod = null;
+    var params = null;
     var headers = null;
     if (options) {
         headers = options.headers || null;
@@ -198,6 +199,13 @@ FileTransfer.prototype.download = function(source, target, successCallback, erro
             httpMethod = "GET";
         } else {
             httpMethod = "POST";
+        }
+
+        if (options.params) {
+            params = options.params;
+        }
+        else {
+            params = {};
         }
     }
 
@@ -233,7 +241,7 @@ FileTransfer.prototype.download = function(source, target, successCallback, erro
         errorCallback(error);
     };
 
-    exec(win, fail, 'FileTransfer', 'download', [source, target, trustAllHosts, this._id, headers, httpMethod]);
+    exec(win, fail, 'FileTransfer', 'download', [source, target, params, trustAllHosts, this._id, headers, httpMethod]);
 };
 
 /**
