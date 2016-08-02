@@ -190,6 +190,7 @@ FileTransfer.prototype.download = function(source, target, successCallback, erro
 
     var httpMethod = null;
     var params = null;
+    var chunkedMode = true;
     var headers = null;
     if (options) {
         headers = options.headers || null;
@@ -199,6 +200,10 @@ FileTransfer.prototype.download = function(source, target, successCallback, erro
             httpMethod = "GET";
         } else {
             httpMethod = "POST";
+        }
+
+        if (options.chunkedMode !== null || typeof options.chunkedMode != "undefined") {
+            chunkedMode = options.chunkedMode;
         }
 
         if (options.params) {
@@ -211,6 +216,7 @@ FileTransfer.prototype.download = function(source, target, successCallback, erro
 
     if (cordova.platformId === "windowsphone" && headers) {
         headers = convertHeadersToArray(headers);
+        params = params && convertHeadersToArray(params);
     }
 
     var win = function(result) {
@@ -241,7 +247,7 @@ FileTransfer.prototype.download = function(source, target, successCallback, erro
         errorCallback(error);
     };
 
-    exec(win, fail, 'FileTransfer', 'download', [source, target, params, trustAllHosts, this._id, headers, httpMethod]);
+    exec(win, fail, 'FileTransfer', 'download', [source, target, params, trustAllHosts, chunkedMode, this._id, headers, httpMethod]);
 };
 
 /**
