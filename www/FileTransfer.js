@@ -190,7 +190,6 @@ FileTransfer.prototype.download = function(source, target, successCallback, erro
 
     var httpMethod = null;
     var params = null;
-    var chunkedMode = true;
     var headers = null;
     if (options) {
         headers = options.headers || null;
@@ -201,11 +200,6 @@ FileTransfer.prototype.download = function(source, target, successCallback, erro
         } else {
             httpMethod = "POST";
         }
-
-        if (options.chunkedMode !== null || typeof options.chunkedMode != "undefined") {
-            chunkedMode = options.chunkedMode;
-        }
-
         if (options.params) {
             params = options.params;
         }
@@ -247,7 +241,7 @@ FileTransfer.prototype.download = function(source, target, successCallback, erro
         errorCallback(error);
     };
 
-    exec(win, fail, 'FileTransfer', 'download', [source, target, params, trustAllHosts, chunkedMode, this._id, headers, httpMethod]);
+    exec(win, fail, 'FileTransfer', 'download', [source, target, trustAllHosts, this._id, headers, params, httpMethod]);
 };
 
 /**
