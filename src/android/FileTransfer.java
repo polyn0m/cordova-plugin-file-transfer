@@ -849,7 +849,7 @@ public class FileTransfer extends CordovaPlugin {
                         // if we specified a Content-Type header, don't do multipart form upload
                         boolean multipartFormUpload = (headers == null) || !headers.has("Content-Type");
                         if (multipartFormUpload) {
-                          connection.setRequestProperty("Content-Type", "multipart/form-data; boundary=" + BOUNDARY);
+                            connection.setRequestProperty("Content-Type", "multipart/form-data; boundary=" + BOUNDARY);
                         }
 
                         // TODO: Make OkHttp use this CookieManager by default.
@@ -868,28 +868,55 @@ public class FileTransfer extends CordovaPlugin {
                             addHeadersToRequest(connection, headers);
                         }
 
+                        connection.connect();
+
+                        if (httpMethod.equals("POST")) {
                             /*
                             * Store the non-file portions of the multipart data as a string, so that we can add it
                             * to the contentSize, since it is part of the body of the HTTP request.
                             */
-                        StringBuilder beforeData = new StringBuilder();
-                        try {
-                            for (Iterator<?> iter = params.keys(); iter.hasNext();) {
-                                Object key = iter.next();
-                                if(!String.valueOf(key).equals("headers"))
-                                {
-                                  beforeData.append(LINE_START).append(BOUNDARY).append(LINE_END);
-                                  beforeData.append("Content-Disposition: form-data; name=\"").append(key.toString()).append('"');
-                                  beforeData.append(LINE_END).append(LINE_END);
-                                  beforeData.append(params.getString(key.toString()));
-                                  beforeData.append(LINE_END);
+                            StringBuilder beforeData = new StringBuilder();
+                            try {
+                                for (Iterator<?> iter = params.keys(); iter.hasNext(); ) {
+                                    Object key = iter.next();
+                                    if (!String.valueOf(key).equals("headers")) {
+                                        beforeData.append(LINE_START).append(BOUNDARY).append(LINE_END);
+                                        beforeData.append("Content-Disposition: form-data; name=\"").append(key.toString()).append('"');
+                                        beforeData.append(LINE_END).append(LINE_END);
+                                        beforeData.append(params.getString(key.toString()));
+                                        beforeData.append(LINE_END);
+                                    }
                                 }
+                            } catch (JSONException e) {
+                                Log.e(LOG_TAG, e.getMessage(), e);
                             }
-                        } catch (JSONException e) {
-                            Log.e(LOG_TAG, e.getMessage(), e);
+                            byte[] beforeDataBytes = beforeData.toString().getBytes("UTF-8");
+                            byte[] tailParamsBytes = (LINE_END + LINE_START + BOUNDARY + LINE_START + LINE_END).getBytes("UTF-8");
+
+                            OutputStream sendStream = null;
+                            try {
+                                sendStream = connection.getOutputStream();
+                                synchronized (context) {
+                                    if (context.aborted) {
+                                        return;
+                                    }
+                                    context.connection = connection;
+                                }
+
+
+                                //We don't want to change encoding, we just want this to write for all Unicode.
+                                sendStream.write(beforeDataBytes);
+                                sendStream.write(tailParamsBytes);
+
+                                sendStream.flush();
+                            } finally {
+                                safeClose(sendStream);
+                            }
+                            synchronized (context) {
+                                context.connection = null;
+                            }
                         }
 
-                        connection.connect();
                         if (connection.getResponseCode() == HttpURLConnection.HTTP_NOT_MODIFIED) {
                             cached = true;
                             connection.disconnect();
