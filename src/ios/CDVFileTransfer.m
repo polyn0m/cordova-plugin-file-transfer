@@ -425,6 +425,11 @@ static CFIndex WriteDataToStream(NSData* data, CFWriteStreamRef stream)
     BOOL trustAllHosts = [[command argumentAtIndex:2 withDefault:[NSNumber numberWithBool:NO]] boolValue]; // allow self-signed certs
     NSString* objectId = [command argumentAtIndex:3];
     NSDictionary* headers = [command argumentAtIndex:4 withDefault:nil];
+    NSDictionary* options = [command argumentAtIndex:5 withDefault:nil];
+    // Allow alternative http method, default to GET. JS side checks
+    // for allowed methods, currently GET or POST (forces GET for
+    // unrecognised values)
+    NSString* httpMethod = [command argumentAtIndex:6 withDefault:@"GET"];
 
     CDVPluginResult* result = nil;
     CDVFileTransferError errorCode = 0;
@@ -461,6 +466,45 @@ static CFIndex WriteDataToStream(NSData* data, CFWriteStreamRef stream)
     }
 
     NSMutableURLRequest* req = [NSMutableURLRequest requestWithURL:sourceURL];
+
+    [req setHTTPMethod:httpMethod];
+
+    // if we specified a Content-Type header, don't do multipart form upload
+    BOOL multipartFormUpload = [headers objectForKey:@"Content-Type"] == nil;
+    if (multipartFormUpload) {
+        NSString* contentType = [NSString stringWithFormat:@"multipart/form-data; boundary=%@", kFormBoundary];
+        [req setValue:contentType forHTTPHeaderField:@"Content-Type"];
+    
+
+        NSData* formBoundaryData = [[NSString stringWithFormat:@"--%@\r\n", kFormBoundary] dataUsingEncoding:NSUTF8StringEncoding];
+        NSMutableData* postBodyBeforeFile = [NSMutableData data];
+
+        for (NSString* key in options) {
+            id val = [options objectForKey:key];
+            if (!val || (val == [NSNull null]) || [key isEqualToString:kOptionsKeyCookie]) {
+                continue;
+            }
+            // if it responds to stringValue selector (eg NSNumber) get the NSString
+            if ([val respondsToSelector:@selector(stringValue)]) {
+                val = [val stringValue];
+            }
+            // finally, check whether it is a NSString (for dataUsingEncoding selector below)
+            if (![val isKindOfClass:[NSString class]]) {
+                continue;
+            }
+
+            [postBodyBeforeFile appendData:formBoundaryData];
+            [postBodyBeforeFile appendData:[[NSString stringWithFormat:@"Content-Disposition: form-data; name=\"%@\"\r\n\r\n", key] dataUsingEncoding:NSUTF8StringEncoding]];
+            [postBodyBeforeFile appendData:[val dataUsingEncoding:NSUTF8StringEncoding]];
+            [postBodyBeforeFile appendData:[@"\r\n" dataUsingEncoding : NSUTF8StringEncoding]];
+        }
+        
+        NSData* postBodyAfterFile = [[NSString stringWithFormat:@"\r\n--%@--\r\n", kFormBoundary] dataUsingEncoding:NSUTF8StringEncoding];
+   
+        [postBodyBeforeFile appendData:postBodyAfterFile];
+        [req setHTTPBody:postBodyBeforeFile];
+    }
+
     [self applyRequestHeaders:headers toRequest:req];
 
     CDVFileTransferDelegate* delegate = [[CDVFileTransferDelegate alloc] init];
