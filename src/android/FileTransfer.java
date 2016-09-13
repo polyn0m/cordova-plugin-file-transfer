@@ -892,7 +892,7 @@ public class FileTransfer extends CordovaPlugin {
                                     }
                                 }
                             } catch (JSONException e) {
-                                Log.e(LOG_TAG, e.getMessage(), e);
+                              LOG.e(LOG_TAG, e.getMessage(), e);
                             }
                             byte[] beforeDataBytes = beforeData.toString().getBytes("UTF-8");
                             byte[] tailParamsBytes = (LINE_END + LINE_START + BOUNDARY + LINE_START + LINE_END).getBytes("UTF-8");
